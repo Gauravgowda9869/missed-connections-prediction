@@ -1,609 +1,414 @@
-"""
-ConnectGuard — Operations Dashboard
-=====================================
-Streamlit dashboard for airline operations teams.
-Displays real-time connection risk scores, alerts, and recommendations.
-
-Usage:
-    streamlit run src/dashboard/app.py
-
-Author: ConnectGuard Team
-"""
-
-import os
-import sys
-import random
+import streamlit as st
+import pandas as pd
 from datetime import datetime, timedelta
 
-import pandas as pd
-import numpy as np
-import streamlit as st
-
-# Ensure src is importable
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-# ─────────────────────────────────────────────
-# PAGE CONFIGURATION
-# ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="ConnectGuard — FRA Hub",
+    page_title="ConnectGuard | FRA Operations Control",
     page_icon="✈️",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    layout="wide"
 )
 
-# ─────────────────────────────────────────────
-# CUSTOM CSS
-# ─────────────────────────────────────────────
+# -----------------------------
+# Sample data fallback
+# Replace this with your real CSV/model output
+# -----------------------------
+alerts = pd.DataFrame([
+    {
+        "connection": "LH214 → LH894",
+        "destination": "BOM",
+        "route": "T2 Gate D65 → T1 Gate A1",
+        "risk": 100,
+        "risk_level": "CRITICAL",
+        "delay": "+60 min",
+        "pax": 11,
+        "time_to_departure": 41,
+        "recommendation": "HOLD FLIGHT",
+        "save_estimate": 9764,
+        "do_nothing_cost": 12300,
+        "escort_value": 6200,
+        "reason_1": "Delay exceeds buffer by 18 minutes",
+        "reason_2": "Cross-terminal transfer required",
+        "reason_3": "11 passengers affected",
+        "propagation_risk": "LOW",
+    },
+    {
+        "connection": "LH703 → LH697",
+        "destination": "LAX",
+        "route": "T1 Gate C14 → T2 Gate E52",
+        "risk": 100,
+        "risk_level": "CRITICAL",
+        "delay": "+45 min",
+        "pax": 2,
+        "time_to_departure": 48,
+        "recommendation": "PRE-REBOOK",
+        "save_estimate": 1708,
+        "do_nothing_cost": 2600,
+        "escort_value": 900,
+        "reason_1": "Available transfer window is below MCT",
+        "reason_2": "Long gate walking time",
+        "reason_3": "Low passenger count makes holding inefficient",
+        "propagation_risk": "MEDIUM",
+    },
+    {
+        "connection": "LH532 → LH422",
+        "destination": "LAX",
+        "route": "T1 Gate B3 → T2 Gate D52",
+        "risk": 100,
+        "risk_level": "CRITICAL",
+        "delay": "+0 min",
+        "pax": 9,
+        "time_to_departure": 63,
+        "recommendation": "HOLD FLIGHT",
+        "save_estimate": 7667,
+        "do_nothing_cost": 9800,
+        "escort_value": 5400,
+        "reason_1": "Gate transfer complexity is high",
+        "reason_2": "Passenger volume is significant",
+        "reason_3": "Premium passenger share increases service risk",
+        "propagation_risk": "LOW",
+    },
+])
+
+# -----------------------------
+# Styling
+# -----------------------------
 st.markdown("""
 <style>
-    /* Import fonts */
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+.block-container {
+    padding-top: 1.5rem;
+}
 
-    /* Root overrides */
-    html, body, [class*="css"] {
-        font-family: 'IBM Plex Sans', sans-serif;
-    }
+.hero {
+    background: linear-gradient(135deg, #090923 0%, #19193d 100%);
+    padding: 28px 34px;
+    border-radius: 14px;
+    border-left: 6px solid #FFD400;
+    color: white;
+    margin-bottom: 20px;
+}
 
-    /* Header bar */
-    .main-header {
-        background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 100%);
-        color: white;
-        padding: 1.2rem 2rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        border-left: 4px solid #FFD700;
-    }
+.hero h1 {
+    margin-bottom: 4px;
+    font-size: 30px;
+}
 
-    /* KPI cards */
-    .kpi-card {
-        background: white;
-        border-radius: 8px;
-        padding: 1.2rem;
-        border-top: 3px solid;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        text-align: center;
-    }
-    .kpi-value {
-        font-size: 2.2rem;
-        font-weight: 700;
-        line-height: 1;
-        font-family: 'IBM Plex Mono', monospace;
-    }
-    .kpi-label {
-        font-size: 0.78rem;
-        color: #666;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-top: 0.4rem;
-    }
+.hero p {
+    margin: 0;
+    color: #D8D8E8;
+}
 
-    /* Risk badges */
-    .badge-critical { background:#FF3B30; color:white; padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; }
-    .badge-high     { background:#FF9500; color:white; padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; }
-    .badge-medium   { background:#FFCC00; color:#333;  padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; }
-    .badge-low      { background:#34C759; color:white; padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; }
+.kpi-card {
+    background: white;
+    padding: 22px;
+    border-radius: 14px;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.08);
+    border-top: 4px solid #111827;
+    text-align: center;
+}
 
-    /* Alert box */
-    .alert-box {
-        background: #FFF3CD;
-        border-left: 4px solid #FF9500;
-        padding: 0.8rem 1rem;
-        border-radius: 4px;
-        margin: 0.5rem 0;
-    }
-    .alert-critical {
-        background: #FFE5E5;
-        border-left-color: #FF3B30;
-    }
+.kpi-value {
+    font-size: 34px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
 
-    /* Section headers */
-    .section-header {
-        font-size: 1rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #1a1a3e;
-        border-bottom: 2px solid #FFD700;
-        padding-bottom: 4px;
-        margin-bottom: 1rem;
-    }
+.kpi-label {
+    font-size: 12px;
+    color: #666;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
 
-    /* Hide Streamlit default footer */
-    footer { visibility: hidden; }
+.priority-box {
+    background: #fff7ed;
+    border: 2px solid #fb923c;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 22px;
+}
+
+.alert-card {
+    background: white;
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 14px;
+    border-left: 5px solid #ef4444;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+}
+
+.risk-pill {
+    display: inline-block;
+    padding: 5px 10px;
+    background: #ef4444;
+    color: white;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.action-pill {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #111827;
+    color: white;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.reason-box {
+    background: #f9fafb;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.whatif-box {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin-top: 18px;
+    margin-bottom: 10px;
+}
 </style>
 """, unsafe_allow_html=True)
 
+# -----------------------------
+# Sidebar
+# -----------------------------
+st.sidebar.markdown("## ✈️ ConnectGuard")
+st.sidebar.markdown("### FRA Hub Operations")
 
-# ─────────────────────────────────────────────
-# DATA LOADING (WITH DEMO FALLBACK)
-# ─────────────────────────────────────────────
+st.sidebar.divider()
 
-@st.cache_data(ttl=300)
-def load_data():
-    """
-    Load synthetic data if available, otherwise generate demo data in memory.
-    """
-    synthetic_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data", "synthetic")
-    conn_path     = os.path.join(synthetic_dir, "connections.csv")
-    risk_path     = os.path.join(synthetic_dir, "risk_scores.csv")
-    out_path      = os.path.join(synthetic_dir, "outcomes.csv")
+st.sidebar.markdown("### Decision Strategy")
+decision_mode = st.sidebar.radio(
+    "Select operating mode",
+    ["Balanced", "Customer-first", "Cost-first"],
+    index=0
+)
 
-    if all(os.path.exists(p) for p in [conn_path, risk_path, out_path]):
-        connections = pd.read_csv(conn_path)
-        risk_scores = pd.read_csv(risk_path)
-        outcomes    = pd.read_csv(out_path)
-        # Use most recent day as "today"
-        if "date" in connections.columns:
-            latest_date = pd.to_datetime(connections["date"]).max()
-            connections = connections[pd.to_datetime(connections["date"]) == latest_date]
-            risk_scores = risk_scores[risk_scores["connection_id"].isin(connections["connection_id"])]
-            outcomes    = outcomes[outcomes["connection_id"].isin(connections["connection_id"])]
-        return connections, risk_scores, outcomes
-    else:
-        return _generate_demo_data()
+st.sidebar.markdown("### Filters")
+risk_filter = st.sidebar.multiselect(
+    "Risk level",
+    ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+    default=["CRITICAL", "HIGH"]
+)
 
+terminal_filter = st.sidebar.multiselect(
+    "Terminal",
+    ["T1", "T2"],
+    default=["T1", "T2"]
+)
 
-def _generate_demo_data():
-    """Generate in-memory demo data when synthetic CSVs not available."""
-    random.seed(42)
-    np.random.seed(42)
+min_pax = st.sidebar.slider("Minimum passenger count", 1, 50, 1)
 
-    n = 120  # connections for today
-    inbound_flights  = [f"LH{random.randint(100,999)}" for _ in range(n)]
-    outbound_flights = [f"LH{random.randint(100,999)}" for _ in range(n)]
-    terminals_in  = random.choices(["T1", "T2"], k=n)
-    terminals_out = random.choices(["T1", "T2"], k=n)
+st.sidebar.divider()
 
-    gates_t1 = [f"{letter}{num}" for letter in ["A","B","C"] for num in range(1,15)]
-    gates_t2 = [f"{letter}{num}" for letter in ["D","E","Z"] for num in [50,51,52,55,60,65]]
+view = st.sidebar.radio(
+    "View",
+    [
+        "🏠 Operations Control",
+        "🚨 Action Queue",
+        "📈 Performance Insights",
+        "🧪 Scenario Simulator",
+        "⚙️ Settings"
+    ]
+)
 
-    conn_ids  = [f"{inb}_{out}_today_{i}" for i, (inb, out) in enumerate(zip(inbound_flights, outbound_flights))]
-    delays    = np.random.choice([0,0,0,0,5,10,15,20,30,45,60,90], size=n, p=[0.3,0.1,0.08,0.07,0.1,0.08,0.07,0.06,0.05,0.04,0.03,0.02])
-    conn_time = np.random.randint(40, 130, n)
-    walk_time = np.random.randint(3, 35, n)
-    mct       = np.where(np.array(terminals_in) == np.array(terminals_out), 30, 45)
+# -----------------------------
+# Header
+# -----------------------------
+now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    connections = pd.DataFrame({
-        "connection_id":              conn_ids,
-        "inbound_flight_id":          inbound_flights,
-        "outbound_flight_id":         outbound_flights,
-        "outbound_destination":       random.choices(["JFK","NRT","DXB","GRU","JNB","LAX","HKG","BOM"], k=n),
-        "inbound_terminal":           terminals_in,
-        "outbound_terminal":          terminals_out,
-        "inbound_arrival_gate":       [random.choice(gates_t1 if t == "T1" else gates_t2) for t in terminals_in],
-        "outbound_departure_gate":    [random.choice(gates_t1 if t == "T1" else gates_t2) for t in terminals_out],
-        "inbound_delay_minutes":      delays,
-        "scheduled_connection_time":  conn_time,
-        "minimum_connection_time":    mct,
-        "gate_walk_minutes":          walk_time,
-        "requires_passport_control":  np.random.choice([True, False], size=n, p=[0.6, 0.4]),
-        "passport_overhead_minutes":  np.where(np.random.random(n) < 0.6, np.random.randint(10, 20, n), 0),
-    })
+st.markdown(f"""
+<div class="hero">
+    <h1>✈️ ConnectGuard — Frankfurt Hub</h1>
+    <p>Missed Connection Prediction & Decision Intelligence System</p>
+    <p style="text-align:right; margin-top:-32px; font-family:monospace;">{now}</p>
+</div>
+""", unsafe_allow_html=True)
 
-    # Generate risk scores
-    scores = []
-    for i, row in connections.iterrows():
-        net = row["scheduled_connection_time"] - row["inbound_delay_minutes"] - row["gate_walk_minutes"] - row["passport_overhead_minutes"]
-        buf = net - row["minimum_connection_time"]
-        if buf < 0: base = random.uniform(75, 100)
-        elif buf < 5: base = random.uniform(55, 80)
-        elif buf < 15: base = random.uniform(35, 65)
-        elif buf < 30: base = random.uniform(15, 45)
-        else: base = random.uniform(0, 25)
-        base = max(0, min(100, base + random.gauss(0, 4)))
+# -----------------------------
+# KPIs
+# -----------------------------
+k1, k2, k3, k4, k5, k6 = st.columns(6)
 
-        cat = "CRITICAL" if base>=85 else "HIGH" if base>=65 else "MEDIUM" if base>=40 else "LOW"
-        pax = random.randint(1, 15)
-        time_dep = max(5, row["scheduled_connection_time"] - row["inbound_delay_minutes"])
+kpis = [
+    ("120", "Active Connections", "#111827"),
+    ("31", "Critical Alerts", "#ef4444"),
+    ("21", "High Risk", "#f59e0b"),
+    ("19.2%", "Miss Rate Today", "#ef4444"),
+    ("€845K", "Potential Savings", "#22c55e"),
+    ("€312K", "Realized Savings", "#2563eb"),
+]
 
-        if base>=85 and time_dep>20 and pax>=4: action = "HOLD_FLIGHT"
-        elif base>=85: action = "PRE_REBOOK"
-        elif base>=65 and time_dep>15: action = "ARRANGE_ESCORT"
-        elif base>=65: action = "PRE_REBOOK"
-        elif base>=40: action = "MONITOR"
-        else: action = "NO_ACTION"
-
-        avg_tier = random.uniform(0.5, 4.0)
-        save_val = pax * (490 + avg_tier * 80 + 0.55 * 350)
-        hold_cost = random.uniform(200, 1200) if action == "HOLD_FLIGHT" else pax * 15 if action == "ARRANGE_ESCORT" else 0
-
-        scores.append({
-            "score_id":             f"SCORE_{i:04d}",
-            "connection_id":        row["connection_id"],
-            "scored_at":            datetime.now() - timedelta(minutes=random.randint(0, 45)),
-            "risk_score":           round(base, 1),
-            "risk_category":        cat,
-            "p_miss":               round(base/100, 3),
-            "recommended_action":   action,
-            "pax_count":            pax,
-            "avg_tier_score":       round(avg_tier, 1),
-            "time_to_departure_min": int(time_dep),
-            "estimated_save_value": round(save_val, 0),
-            "estimated_hold_cost":  round(hold_cost, 0),
-            "net_benefit":          round(save_val - hold_cost, 0),
-        })
-
-    risk_scores = pd.DataFrame(scores)
-
-    # Outcomes: simulate past results
-    outcomes = pd.DataFrame({
-        "connection_id": conn_ids,
-        "result": np.where(
-            np.random.random(n) < (risk_scores["p_miss"].values * 0.3),
-            "MISSED", "CONNECTION_MADE"
-        ),
-        "actual_cost": np.random.exponential(200, n),
-    })
-
-    return connections, risk_scores, outcomes
-
-
-# ─────────────────────────────────────────────
-# SIDEBAR
-# ─────────────────────────────────────────────
-
-def render_sidebar():
-    with st.sidebar:
-        st.markdown("### ✈️ ConnectGuard")
-        st.markdown("**FRA Hub Operations**")
-        st.markdown("---")
-
-        st.markdown("**Filters**")
-        risk_filter = st.multiselect(
-            "Risk Level",
-            ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
-            default=["CRITICAL", "HIGH"],
-        )
-        terminal_filter = st.multiselect(
-            "Terminal",
-            ["T1", "T2"],
-            default=["T1", "T2"],
-        )
-        min_pax = st.slider("Min Pax Count", 1, 20, 1)
-
-        st.markdown("---")
-        st.markdown("**View**")
-        page = st.radio(
-            "Page",
-            ["🏠 Hub Overview", "📋 Connection List", "📊 Analytics", "⚙️ Settings"],
-            label_visibility="collapsed",
-        )
-
-        st.markdown("---")
-        st.caption(f"Last refresh: {datetime.now().strftime('%H:%M:%S')}")
-        if st.button("🔄 Refresh"):
-            st.cache_data.clear()
-            st.rerun()
-
-    return risk_filter, terminal_filter, min_pax, page
-
-
-# ─────────────────────────────────────────────
-# HEADER
-# ─────────────────────────────────────────────
-
-def render_header():
-    st.markdown("""
-    <div class="main-header">
-        <div>
-            <div style="font-size:1.4rem; font-weight:700; letter-spacing:0.02em;">
-                ✈️ ConnectGuard — Frankfurt Hub
-            </div>
-            <div style="font-size:0.85rem; opacity:0.8; margin-top:2px;">
-                Missed Connection Prediction & Decision Intelligence System
-            </div>
+for col, (value, label, color) in zip([k1, k2, k3, k4, k5, k6], kpis):
+    with col:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-value" style="color:{color};">{value}</div>
+            <div class="kpi-label">{label}</div>
         </div>
-        <div style="margin-left:auto; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:0.85rem; opacity:0.9;">
-            {} UTC
+        """, unsafe_allow_html=True)
+
+# -----------------------------
+# Main views
+# -----------------------------
+if view == "🏠 Operations Control":
+    top = alerts.sort_values(["risk", "save_estimate"], ascending=False).iloc[0]
+
+    st.markdown('<div class="section-title">🔥 Top Priority Decision</div>', unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="priority-box">
+        <div style="display:flex; justify-content:space-between; gap:20px;">
+            <div>
+                <h2 style="margin:0;">{top['connection']} → {top['destination']}</h2>
+                <p style="margin:4px 0 12px 0; color:#555;">{top['route']}</p>
+                <span class="risk-pill">{top['risk_level']}</span>
+                <span style="font-size:28px; font-weight:800; margin-left:14px;">{top['risk']}/100</span>
+            </div>
+            <div style="text-align:right;">
+                <div class="action-pill">{top['recommendation']}</div>
+                <h3 style="margin:12px 0 0 0;">Save estimate: €{top['save_estimate']:,.0f}</h3>
+                <p style="color:#555;">Decision window: {max(top['time_to_departure'] - 35, 3)} minutes remaining</p>
+            </div>
         </div>
     </div>
-    """.format(datetime.utcnow().strftime("%Y-%m-%d %H:%M")), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-
-# ─────────────────────────────────────────────
-# KPI TILES
-# ─────────────────────────────────────────────
-
-def render_kpis(risk_scores: pd.DataFrame, outcomes: pd.DataFrame):
-    total         = len(risk_scores)
-    critical_count = len(risk_scores[risk_scores["risk_category"] == "CRITICAL"])
-    high_count     = len(risk_scores[risk_scores["risk_category"] == "HIGH"])
-    missed_count   = len(outcomes[outcomes["result"] == "MISSED"])
-    miss_rate      = missed_count / total * 100 if total > 0 else 0
-    total_save_val = risk_scores["estimated_save_value"].sum()
-    avg_risk       = risk_scores["risk_score"].mean()
-
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1, c2, c3 = st.columns([1.2, 1, 1])
 
     with c1:
+        st.markdown("### 🧠 Why this alert?")
         st.markdown(f"""
-        <div class="kpi-card" style="border-top-color:#0a0a1a">
-            <div class="kpi-value" style="color:#0a0a1a">{total}</div>
-            <div class="kpi-label">Active Connections</div>
-        </div>""", unsafe_allow_html=True)
+        <div class="reason-box">
+        • {top['reason_1']}<br>
+        • {top['reason_2']}<br>
+        • {top['reason_3']}<br>
+        • Delay propagation risk: <b>{top['propagation_risk']}</b>
+        </div>
+        """, unsafe_allow_html=True)
+
     with c2:
-        st.markdown(f"""
-        <div class="kpi-card" style="border-top-color:#FF3B30">
-            <div class="kpi-value" style="color:#FF3B30">{critical_count}</div>
-            <div class="kpi-label">Critical Alerts</div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown("### 💰 What-if decision view")
+        whatif = pd.DataFrame({
+            "Action": ["Hold flight", "Do nothing", "Arrange escort"],
+            "Estimated outcome": [
+                f"Save €{top['save_estimate']:,.0f}",
+                f"Lose €{top['do_nothing_cost']:,.0f}",
+                f"Save €{top['escort_value']:,.0f}"
+            ]
+        })
+        st.dataframe(whatif, hide_index=True, use_container_width=True)
+
     with c3:
-        st.markdown(f"""
-        <div class="kpi-card" style="border-top-color:#FF9500">
-            <div class="kpi-value" style="color:#FF9500">{high_count}</div>
-            <div class="kpi-label">High Risk</div>
-        </div>""", unsafe_allow_html=True)
-    with c4:
-        color = "#FF3B30" if miss_rate > 3 else "#FF9500" if miss_rate > 1.5 else "#34C759"
-        st.markdown(f"""
-        <div class="kpi-card" style="border-top-color:{color}">
-            <div class="kpi-value" style="color:{color}">{miss_rate:.1f}%</div>
-            <div class="kpi-label">Miss Rate Today</div>
-        </div>""", unsafe_allow_html=True)
-    with c5:
-        st.markdown(f"""
-        <div class="kpi-card" style="border-top-color:#34C759">
-            <div class="kpi-value" style="color:#34C759">€{total_save_val/1000:.0f}K</div>
-            <div class="kpi-label">Potential Savings</div>
-        </div>""", unsafe_allow_html=True)
-    with c6:
-        st.markdown(f"""
-        <div class="kpi-card" style="border-top-color:#007AFF">
-            <div class="kpi-value" style="color:#007AFF">{avg_risk:.0f}</div>
-            <div class="kpi-label">Avg Risk Score</div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown("### 📌 Ops Summary")
+        st.info(
+            "31 critical alerts active. Highest concentration is cross-terminal transfer traffic. "
+            "Recommended operating response: prioritize escort resources for T2 arrivals and hold only high-value outbound long-haul flights."
+        )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🚨 Action Required</div>', unsafe_allow_html=True)
 
+    for _, row in alerts.iterrows():
+        left, mid, right = st.columns([2.1, 1.5, 1.2])
 
-# ─────────────────────────────────────────────
-# ACTIVE ALERTS TABLE
-# ─────────────────────────────────────────────
+        with left:
+            st.markdown(f"""
+            <div class="alert-card">
+                <b>{row['connection']} → {row['destination']}</b><br>
+                <span style="color:#666;">{row['route']}</span><br><br>
+                <span class="risk-pill">{row['risk_level']}</span>
+                <span style="font-size:24px; font-weight:800; margin-left:10px;">{row['risk']}</span><span style="color:#777;">/100</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-RISK_COLORS = {
-    "CRITICAL": "#FF3B30",
-    "HIGH":     "#FF9500",
-    "MEDIUM":   "#FFCC00",
-    "LOW":      "#34C759",
-}
+        with mid:
+            st.markdown(f"""
+            <div style="padding-top:20px;">
+                <b style="color:#ef4444;">{row['delay']}</b><br>
+                <span style="color:#666;">{row['pax']} pax · {row['time_to_departure']} min to departure</span><br>
+                <span style="color:#666;">Save est: €{row['save_estimate']:,.0f}</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-ACTION_ICONS = {
-    "HOLD_FLIGHT":    "🛑",
-    "ARRANGE_ESCORT": "🏃",
-    "PRE_REBOOK":     "🔁",
-    "MONITOR":        "👁️",
-    "NO_ACTION":      "✅",
-}
+        with right:
+            st.markdown(f"""
+            <div style="padding-top:18px;">
+                <b>{row['recommendation']}</b>
+            </div>
+            """, unsafe_allow_html=True)
+            st.button("Acknowledge", key=f"ack_{row['connection']}")
 
+elif view == "🚨 Action Queue":
+    st.markdown("## 🚨 Action Queue")
+    st.caption("Prioritized operational queue sorted by financial impact and risk severity.")
 
-def render_alerts(risk_scores: pd.DataFrame, connections: pd.DataFrame, risk_filter: list, terminal_filter: list, min_pax: int):
-    st.markdown('<div class="section-header">⚠️ Active Alerts</div>', unsafe_allow_html=True)
+    action_table = alerts[[
+        "connection", "destination", "risk_level", "risk",
+        "pax", "recommendation", "save_estimate", "time_to_departure"
+    ]].copy()
 
-    # Merge for display
-    merged = risk_scores.merge(
-        connections[["connection_id", "inbound_flight_id", "outbound_flight_id",
-                     "outbound_destination", "inbound_terminal", "outbound_terminal",
-                     "inbound_arrival_gate", "outbound_departure_gate", "inbound_delay_minutes"]],
-        on="connection_id", how="left"
+    action_table["save_estimate"] = action_table["save_estimate"].apply(lambda x: f"€{x:,.0f}")
+    action_table["time_to_departure"] = action_table["time_to_departure"].apply(lambda x: f"{x} min")
+
+    st.dataframe(action_table, hide_index=True, use_container_width=True)
+
+elif view == "📈 Performance Insights":
+    st.markdown("## 📈 Performance Insights")
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        st.markdown("### Alert Distribution")
+        dist = pd.DataFrame({
+            "Risk Level": ["Critical", "High", "Medium", "Low"],
+            "Count": [31, 21, 44, 24]
+        })
+        st.bar_chart(dist.set_index("Risk Level"))
+
+    with c2:
+        st.markdown("### Decision Outcome Tracking")
+        outcomes = pd.DataFrame({
+            "Decision": ["Hold Flight", "Pre-Rebook", "Escort", "Monitor"],
+            "Realized Savings": [142000, 88000, 62000, 20000]
+        })
+        st.bar_chart(outcomes.set_index("Decision"))
+
+    st.markdown("### PM Interpretation")
+    st.success(
+        "The strongest financial impact comes from selective flight holds, but pre-rebooking provides a lower-risk alternative when the decision window is too short."
     )
 
-    # Apply filters
-    filtered = merged[
-        (merged["risk_category"].isin(risk_filter)) &
-        (merged.get("inbound_terminal", "T1").isin(terminal_filter) if "inbound_terminal" in merged.columns else True) &
-        (merged["pax_count"] >= min_pax)
-    ].sort_values("risk_score", ascending=False)
+elif view == "🧪 Scenario Simulator":
+    st.markdown("## 🧪 Scenario Simulator")
+    st.caption("Use this to demonstrate product thinking: what happens if operational conditions change?")
 
-    if len(filtered) == 0:
-        st.info("No alerts match the current filter criteria.")
-        return
+    delay_increase = st.slider("Increase inbound delay by minutes", 0, 60, 10)
+    pax_multiplier = st.slider("Passenger volume multiplier", 1.0, 3.0, 1.2)
 
-    # Show top 20
-    for _, row in filtered.head(20).iterrows():
-        cat   = row.get("risk_category", "LOW")
-        color = RISK_COLORS.get(cat, "#888")
-        icon  = ACTION_ICONS.get(row.get("recommended_action", "NO_ACTION"), "")
-        inb   = row.get("inbound_flight_id", "???")
-        out   = row.get("outbound_flight_id", "???")
-        dest  = row.get("outbound_destination", "???")
-        delay = row.get("inbound_delay_minutes", 0)
-        pax   = int(row.get("pax_count", 0))
-        score = float(row.get("risk_score", 0))
-        gate_in  = row.get("inbound_arrival_gate", "?")
-        gate_out = row.get("outbound_departure_gate", "?")
-        term_in  = row.get("inbound_terminal", "T?")
-        term_out = row.get("outbound_terminal", "T?")
-        t2d      = int(row.get("time_to_departure_min", 0))
-        save_val = float(row.get("estimated_save_value", 0))
-        action   = row.get("recommended_action", "NO_ACTION")
+    simulated_risk = min(100, 52 + delay_increase * 0.9 + pax_multiplier * 8)
+    estimated_loss = int(4500 + delay_increase * 180 + pax_multiplier * 1200)
 
-        col1, col2, col3, col4, col5 = st.columns([2.5, 2, 1.5, 2, 2])
-        with col1:
-            st.markdown(f"""
-            <div style="background:{color}15; border-left:3px solid {color}; padding:8px 12px; border-radius:4px;">
-                <strong style="font-size:0.95rem;">{inb} → {out}</strong>
-                <span style="color:#666; font-size:0.8rem;"> → {dest}</span>
-                <br><span style="font-size:0.78rem; color:#888;">{term_in} gate {gate_in} → {term_out} gate {gate_out}</span>
-            </div>
-            """, unsafe_allow_html=True)
-        with col2:
-            badge_cls = f"badge-{cat.lower()}"
-            st.markdown(f"""
-            <div style="padding-top:8px;">
-                <span class="{badge_cls}">{cat}</span>
-                <strong style="font-size:1.2rem; margin-left:8px; font-family:'IBM Plex Mono',monospace;">{score:.0f}</strong>
-                <span style="color:#888; font-size:0.78rem;">/100</span>
-            </div>
-            """, unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"""
-            <div style="padding-top:8px; text-align:center;">
-                <div style="font-size:1rem; font-weight:600; color:{'#FF3B30' if delay>30 else '#FF9500' if delay>10 else '#888'}">
-                    +{delay} min
-                </div>
-                <div style="font-size:0.72rem; color:#888;">{pax} pax · {t2d}min to dep</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col4:
-            st.markdown(f"""
-            <div style="padding-top:8px;">
-                <div style="font-size:0.85rem;">{icon} <strong>{action.replace('_',' ')}</strong></div>
-                <div style="font-size:0.72rem; color:#888;">Save est: €{save_val:,.0f}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col5:
-            st.button(f"Acknowledge", key=f"ack_{row['connection_id'][:20]}", type="secondary")
+    c1, c2, c3 = st.columns(3)
 
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+    c1.metric("Simulated Risk Score", f"{simulated_risk:.0f}/100")
+    c2.metric("Estimated No-Action Cost", f"€{estimated_loss:,.0f}")
+    c3.metric("Recommended Strategy", "Hold / Escort" if simulated_risk > 75 else "Monitor")
 
+    st.info(
+        "This simulator shows how a PM can test operational assumptions before rollout. "
+        "It demonstrates trade-off thinking, not just ML prediction."
+    )
 
-# ─────────────────────────────────────────────
-# ANALYTICS PAGE
-# ─────────────────────────────────────────────
-
-def render_analytics(risk_scores: pd.DataFrame, outcomes: pd.DataFrame):
-    st.markdown('<div class="section-header">📊 Analytics & Model Performance</div>', unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Risk Distribution")
-        cat_counts = risk_scores["risk_category"].value_counts().reindex(
-            ["CRITICAL", "HIGH", "MEDIUM", "LOW"], fill_value=0
-        )
-        st.bar_chart(cat_counts)
-
-    with col2:
-        st.subheader("Recommended Actions")
-        action_counts = risk_scores["recommended_action"].value_counts()
-        st.bar_chart(action_counts)
-
-    st.markdown("---")
-    col3, col4 = st.columns(2)
-
-    with col3:
-        st.subheader("Risk Score Distribution")
-        hist_data = pd.cut(risk_scores["risk_score"], bins=10).value_counts().sort_index()
-        st.bar_chart(hist_data)
-
-    with col4:
-        st.subheader("Potential Savings by Risk Category")
-        savings = risk_scores.groupby("risk_category")["estimated_save_value"].sum().reindex(
-            ["CRITICAL", "HIGH", "MEDIUM", "LOW"], fill_value=0
-        )
-        st.bar_chart(savings)
-
-    st.markdown("---")
-    st.subheader("📈 Key Metrics Summary")
-
-    metrics_data = {
-        "Metric": [
-            "Total connections today",
-            "High/Critical alerts",
-            "Alert rate",
-            "Average risk score",
-            "Avg pax per connection",
-            "Total potential savings",
-            "Connections requiring hold",
-            "Connections requiring escort",
-        ],
-        "Value": [
-            f"{len(risk_scores):,}",
-            f"{len(risk_scores[risk_scores['risk_category'].isin(['CRITICAL','HIGH'])]):,}",
-            f"{len(risk_scores[risk_scores['risk_category'].isin(['CRITICAL','HIGH'])])/len(risk_scores)*100:.1f}%",
-            f"{risk_scores['risk_score'].mean():.1f}",
-            f"{risk_scores['pax_count'].mean():.1f}",
-            f"€{risk_scores['estimated_save_value'].sum():,.0f}",
-            f"{len(risk_scores[risk_scores['recommended_action']=='HOLD_FLIGHT']):,}",
-            f"{len(risk_scores[risk_scores['recommended_action']=='ARRANGE_ESCORT']):,}",
-        ]
-    }
-    st.dataframe(pd.DataFrame(metrics_data), use_container_width=True, hide_index=True)
-
-
-# ─────────────────────────────────────────────
-# SETTINGS PAGE
-# ─────────────────────────────────────────────
-
-def render_settings():
-    st.markdown('<div class="section-header">⚙️ System Configuration</div>', unsafe_allow_html=True)
-    st.markdown("**Alert Thresholds**")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.slider("CRITICAL threshold", 70, 95, 85, key="crit_thresh")
-        st.slider("HIGH threshold", 50, 80, 65, key="high_thresh")
-    with col2:
-        st.slider("MEDIUM threshold", 20, 60, 40, key="med_thresh")
-        st.slider("Min pax for HOLD recommendation", 1, 10, 4, key="min_hold_pax")
-
-    st.markdown("---")
-    st.markdown("**Notification Settings**")
-    st.checkbox("Email alerts for CRITICAL", value=True)
-    st.checkbox("Slack webhook for HIGH/CRITICAL", value=False)
-    st.checkbox("Auto-escalate unacknowledged alerts (10 min)", value=True)
-
-    st.markdown("---")
-    st.markdown("**Data Sources**")
-    st.info("✅ Synthetic data loaded from `data/synthetic/`")
-    st.info("⚠️ Live ACARS feed: NOT connected (demo mode)")
-    st.info("⚠️ Amadeus Altéa PSS: NOT connected (demo mode)")
-
-
-# ─────────────────────────────────────────────
-# MAIN APP
-# ─────────────────────────────────────────────
-
-def main():
-    render_header()
-
-    # Sidebar
-    risk_filter, terminal_filter, min_pax, page = render_sidebar()
-
-    # Load data
-    with st.spinner("Loading connection data..."):
-        connections, risk_scores, outcomes = load_data()
-
-    # Route to page
-    if page == "🏠 Hub Overview":
-        render_kpis(risk_scores, outcomes)
-        render_alerts(risk_scores, connections, risk_filter, terminal_filter, min_pax)
-
-    elif page == "📋 Connection List":
-        st.markdown('<div class="section-header">📋 All Active Connections</div>', unsafe_allow_html=True)
-        display_cols = [
-            "connection_id", "risk_score", "risk_category", "p_miss",
-            "recommended_action", "pax_count", "avg_tier_score",
-            "time_to_departure_min", "estimated_save_value", "net_benefit"
-        ]
-        available_cols = [c for c in display_cols if c in risk_scores.columns]
-
-        def color_risk(val):
-            colors = {"CRITICAL": "background-color: #FF3B3020", "HIGH": "background-color: #FF950020",
-                      "MEDIUM": "background-color: #FFCC0020", "LOW": "background-color: #34C75920"}
-            return colors.get(val, "")
-
-        styled = (
-            risk_scores[available_cols]
-            .sort_values("risk_score", ascending=False)
-            .style.applymap(color_risk, subset=["risk_category"])
-            .format({"risk_score": "{:.1f}", "p_miss": "{:.1%}",
-                     "estimated_save_value": "€{:,.0f}", "net_benefit": "€{:,.0f}"})
-        )
-        st.dataframe(styled, use_container_width=True, height=600)
-
-    elif page == "📊 Analytics":
-        render_analytics(risk_scores, outcomes)
-
-    elif page == "⚙️ Settings":
-        render_settings()
-
-    # Footer
-    st.markdown("---")
-    st.caption("ConnectGuard v1.0 | Frankfurt Hub | Lufthansa Group | Built for Airline Operations")
-
-
-if __name__ == "__main__":
-    main()
+else:
+    st.markdown("## ⚙️ Settings")
+    st.write("Configuration placeholder for data refresh frequency, alert thresholds, and decision cost assumptions.")
