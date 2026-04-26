@@ -2,11 +2,19 @@
 
 > **A production-grade airline operations intelligence system that predicts the probability of passengers missing connecting flights and provides actionable recommendations to reduce missed connections and associated costs.**
 
+## 🚀 Live Demo
+
+👉 **[Launch ConnectGuard Dashboard](https://missed-connections-prediction-k9rerwu9qoubzusezgox3s.streamlit.app/)**
+
+> Simulates real-time missed connection risk scoring and operational decision-making for airline hubs.
+
+⚠️ Note: The system uses synthetic FRA hub data for demonstration purposes.
+
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit-red)](https://streamlit.io)
+[![Live App](https://img.shields.io/badge/Live%20Demo-ConnectGuard-brightgreen)](https://missed-connections-prediction-k9rerwu9qoubzusezgox3s.streamlit.app/)
 [![Domain](https://img.shields.io/badge/Domain-Aviation%20Ops-navy)](/)
 [![Type](https://img.shields.io/badge/Type-Product%20%2B%20ML%20%2B%20System%20Design-green)](/)
-
 ---
 
 ## 🎯 Problem Statement
