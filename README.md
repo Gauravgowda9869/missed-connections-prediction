@@ -30,6 +30,26 @@ Every year, airlines lose **€3–5 billion globally** due to missed connection
 **The problem is not that delays happen. The problem is that decisions are made too late, with too little data.**
 
 ---
+## ❗ Why This Problem Matters
+
+Missed connections are not just passenger inconvenience — they are a **core disruption problem in airline operations**.
+
+- Passenger connectivity is one of the most complex and least optimized areas in airline systems  
+- Prediction of missed connections is still an emerging research area with limited real-world deployment :contentReference[oaicite:0]{index=0}  
+- Delays propagate across the network, causing cascading operational and financial impact :contentReference[oaicite:1]{index=1}  
+
+👉 ConnectGuard bridges the gap between **prediction and operational decision-making**, which is still missing in most systems.
+
+---
+
+## 🧑‍💼 Product Thinking Highlights
+
+- Designed as a **decision-support system**, not just a prediction model  
+- Translates ML outputs into **operational actions with cost trade-offs**  
+- Aligns with real airline workflows (AOCC / NOC environments)  
+- Balances **customer experience vs operational cost vs network impact**
+
+---
 
 ## 💡 Solution — ConnectGuard
 
