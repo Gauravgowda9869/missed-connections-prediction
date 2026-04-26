@@ -1,0 +1,386 @@
+# ✈️ ConnectGuard — Complete GitHub Upload Guide
+# Step-by-step from zero to live GitHub portfolio project
+
+=======================================================
+PART 1: WHAT YOU HAVE & WHAT GITHUB WILL SHOW
+=======================================================
+
+Your project folder structure on your computer:
+
+missed-connections-prediction/
+│
+├── README.md                    ← GitHub renders this as your project homepage
+├── requirements.txt
+│
+├── docs/
+│   ├── 01_product_thinking.md
+│   ├── 02_business_impact.md
+│   ├── 03_prd.md
+│   ├── 04_system_design.md
+│   └── 05_data_strategy.md
+│
+├── data/
+│   └── generate_synthetic_data.py
+│
+├── src/
+│   ├── data_pipeline/
+│   │   └── feature_engineering.py
+│   ├── models/
+│   │   └── risk_model.py
+│   ├── decision_engine/
+│   │   └── decision_engine.py
+│   └── dashboard/
+│       └── app.py
+│
+└── tests/
+    └── test_risk_model.py
+
+
+=======================================================
+PART 2: ONE-TIME SETUP (do this once ever)
+=======================================================
+
+STEP 1 — Install Git
+─────────────────────
+Mac:
+  Open Terminal → type: git --version
+  If not installed, Mac will prompt you to install it. Click Install.
+
+Windows:
+  Go to: https://git-scm.com/download/win
+  Download and install with all default options.
+
+Linux:
+  sudo apt install git
+
+STEP 2 — Create a GitHub account
+──────────────────────────────────
+Go to: https://github.com
+Click "Sign up" → create account with your email.
+Verify your email when prompted.
+
+STEP 3 — Configure Git with your identity
+───────────────────────────────────────────
+Open Terminal (Mac/Linux) or Git Bash (Windows) and run:
+
+  git config --global user.name "Your Full Name"
+  git config --global user.email "your@email.com"
+
+(Use the same email as your GitHub account.)
+
+
+=======================================================
+PART 3: CREATE THE GITHUB REPOSITORY
+=======================================================
+
+STEP 4 — Create a new repo on GitHub
+──────────────────────────────────────
+1. Go to: https://github.com
+2. Click the GREEN "New" button (top left) OR go to: https://github.com/new
+3. Fill in:
+     Repository name:  missed-connections-prediction
+     Description:      AI-powered missed flight connection prediction & decision intelligence system for airline operations
+     Visibility:       ✅ Public  (so recruiters can see it)
+     Add a README:     ❌ NO  (we already have one)
+     Add .gitignore:   ❌ NO  (we'll create one)
+     License:          MIT (optional, recommended)
+
+4. Click "Create repository"
+5. GitHub shows you a page with your repo URL — copy it:
+   Example: https://github.com/yourname/missed-connections-prediction.git
+   KEEP THIS PAGE OPEN — you'll need the URL in a moment.
+
+
+=======================================================
+PART 4: SET UP YOUR LOCAL PROJECT FOLDER
+=======================================================
+
+STEP 5 — Move/organize your project files
+───────────────────────────────────────────
+If Claude gave you the files in this conversation, you need to:
+
+Option A — Download from Claude
+  • Each file shown in this chat has a download link
+  • Create a folder on your Desktop called: missed-connections-prediction
+  • Recreate the folder structure inside it (docs/, data/, src/, tests/)
+  • Save each file into its correct folder
+
+Option B — Claude created files on its computer
+  • The files were created in /home/claude/missed-connections-prediction/
+  • Download the ZIP file provided (if present_files was called)
+  • Unzip it on your Desktop
+
+STEP 6 — Create a .gitignore file
+───────────────────────────────────
+Inside your missed-connections-prediction folder, create a file
+called exactly:  .gitignore  (with the dot, no extension)
+
+Paste this content into it:
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Data outputs (too large for git)
+data/synthetic/*.csv
+models/*.pkl
+
+# IDE files
+.idea/
+.vscode/
+*.DS_Store
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+
+STEP 7 — Create a models folder placeholder
+─────────────────────────────────────────────
+Create an empty file: models/.gitkeep
+(This keeps the folder in git even when it's empty)
+
+
+=======================================================
+PART 5: PUSH TO GITHUB — TERMINAL COMMANDS
+=======================================================
+
+Open Terminal (Mac/Linux) or Git Bash (Windows).
+
+STEP 8 — Navigate to your project folder
+──────────────────────────────────────────
+  cd ~/Desktop/missed-connections-prediction
+
+(If your folder is elsewhere, adjust the path accordingly)
+
+Confirm you're in the right place:
+  ls
+You should see: README.md  requirements.txt  docs/  data/  src/  tests/
+
+STEP 9 — Initialize Git in this folder
+─────────────────────────────────────────
+  git init
+
+You'll see: Initialized empty Git repository in .../missed-connections-prediction/.git/
+
+STEP 10 — Connect to your GitHub repo
+───────────────────────────────────────
+  git remote add origin https://github.com/YOURUSERNAME/missed-connections-prediction.git
+
+Replace YOURUSERNAME with your actual GitHub username.
+
+STEP 11 — Add all files
+─────────────────────────
+  git add .
+
+This stages ALL files for commit. The dot means "everything in this folder."
+
+STEP 12 — Commit (take a snapshot)
+────────────────────────────────────
+  git commit -m "Initial commit: ConnectGuard - Missed Connection Prediction System
+
+  - Full PRD and product thinking documentation
+  - Synthetic data generator for FRA hub simulation
+  - Feature engineering pipeline (27 features)
+  - Hybrid rule + GBM risk scoring model
+  - Decision engine with cost-benefit analysis
+  - Streamlit operations dashboard
+  - Unit and integration tests"
+
+STEP 13 — Push to GitHub
+─────────────────────────
+  git branch -M main
+  git push -u origin main
+
+GitHub will ask for your username and password.
+⚠️ NOTE: GitHub no longer accepts your account password here.
+You need a Personal Access Token instead. See STEP 14.
+
+STEP 14 — Generate a GitHub Personal Access Token (if needed)
+───────────────────────────────────────────────────────────────
+1. Go to: https://github.com/settings/tokens
+2. Click "Generate new token" → "Generate new token (classic)"
+3. Note/name: "ConnectGuard upload"
+4. Expiration: 90 days
+5. Scopes: check "repo" (full control of private repositories)
+6. Click "Generate token"
+7. COPY THE TOKEN NOW — GitHub won't show it again
+8. When Terminal asks for password → paste the token (not your account password)
+
+STEP 15 — Verify it worked
+─────────────────────────────
+Go to: https://github.com/YOURUSERNAME/missed-connections-prediction
+
+You should see:
+✅ Your README.md rendered beautifully as the project homepage
+✅ All folders visible: docs/, data/, src/, tests/
+✅ File count and last commit message
+
+
+=======================================================
+PART 6: MAKE IT LOOK GREAT ON GITHUB
+=======================================================
+
+STEP 16 — Add repository topics (tags)
+────────────────────────────────────────
+On your GitHub repo page:
+1. Click the ⚙️ gear icon next to "About" (top right of repo)
+2. Add these topics (one by one, press Enter after each):
+     machine-learning
+     aviation
+     streamlit
+     product-management
+     python
+     data-science
+     airline-operations
+     decision-intelligence
+     predictive-analytics
+     xgboost
+3. Add a description:
+     AI-powered missed flight connection prediction & decision intelligence for airline operations
+4. Click "Save changes"
+
+STEP 17 — Pin this repo to your profile
+─────────────────────────────────────────
+1. Go to your GitHub profile: https://github.com/YOURUSERNAME
+2. Click "Customize your pins"
+3. Select "missed-connections-prediction"
+4. Click "Save pins"
+
+Now it appears prominently on your profile page — first thing recruiters see.
+
+STEP 18 — Add a LinkedIn link in README (optional)
+────────────────────────────────────────────────────
+Edit README.md on GitHub directly:
+1. Click README.md → click the pencil ✏️ icon
+2. Add at the bottom:
+
+   ## Connect
+   [LinkedIn](https://linkedin.com/in/YOURPROFILE)
+
+3. Scroll down → click "Commit changes"
+
+
+=======================================================
+PART 7: DEPLOY THE DASHBOARD LIVE (OPTIONAL BUT IMPRESSIVE)
+=======================================================
+
+Deploy your Streamlit dashboard so recruiters can click a LIVE DEMO link.
+This is free and takes 10 minutes.
+
+STEP 19 — Deploy to Streamlit Community Cloud
+───────────────────────────────────────────────
+1. Go to: https://share.streamlit.io
+2. Sign in with your GitHub account
+3. Click "New app"
+4. Fill in:
+     Repository: YOURUSERNAME/missed-connections-prediction
+     Branch:     main
+     Main file:  src/dashboard/app.py
+5. Click "Deploy!"
+6. Wait 2–3 minutes
+7. You get a live URL like: https://connectguard-fra.streamlit.app
+
+STEP 20 — Add live demo link to README
+────────────────────────────────────────
+Edit README.md, add near the top:
+
+  [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-red)](https://YOUR-APP-URL.streamlit.app)
+
+Then commit and push:
+  git add README.md
+  git commit -m "Add live demo badge"
+  git push
+
+
+=======================================================
+PART 8: WHAT RECRUITERS WILL SEE
+=======================================================
+
+When a recruiter or hiring manager visits your GitHub:
+
+Landing on your profile:
+  → Pinned repo: missed-connections-prediction
+  → Description: AI-powered missed flight connection prediction...
+  → Language: Python | Stars | Commits
+
+Clicking into the repo:
+  → README renders immediately — professional, detailed, badges
+  → docs/ folder — they can click and read your PRD, business impact, personas
+  → src/ folder — clean, well-commented Python code
+  → Live Demo badge → clicks straight to working Streamlit app
+
+What this signals to a PM recruiter:
+  ✅ Can define a real problem with business context
+  ✅ Can write a PRD (the docs/03_prd.md)
+  ✅ Understands data and systems (not just slides)
+  ✅ Can quantify business impact (ROI model in docs/)
+  ✅ Knows how to ship (working code + tests + dashboard)
+  ✅ Aviation domain knowledge (terminology, MCT, EU261, IROP)
+
+
+=======================================================
+PART 9: KEEPING IT UPDATED (FUTURE COMMITS)
+=======================================================
+
+After the initial push, whenever you make changes:
+
+  # See what changed
+  git status
+
+  # Stage changes
+  git add .
+
+  # Commit with a clear message
+  git commit -m "Add XGBoost model evaluation notebook"
+
+  # Push to GitHub
+  git push
+
+
+=======================================================
+PART 10: TROUBLESHOOTING
+=======================================================
+
+Problem: "fatal: remote origin already exists"
+Solution: git remote set-url origin https://github.com/YOURUSERNAME/missed-connections-prediction.git
+
+Problem: "Permission denied" or authentication error
+Solution: Use Personal Access Token as password (see STEP 14)
+
+Problem: "src/dashboard/app.py not found" on Streamlit
+Solution: Make sure the file path in Streamlit Cloud exactly matches your repo structure
+
+Problem: Streamlit app crashes on launch
+Solution: Make sure requirements.txt includes all dependencies, then redeploy
+
+Problem: Large files rejected by GitHub (>100MB)
+Solution: data/synthetic/ CSVs are in .gitignore so they won't be pushed
+          The data is generated locally by running: python data/generate_synthetic_data.py
+
+=======================================================
+SUMMARY — COMMANDS IN ORDER
+=======================================================
+
+  cd ~/Desktop/missed-connections-prediction
+  git init
+  git remote add origin https://github.com/YOURUSERNAME/missed-connections-prediction.git
+  git add .
+  git commit -m "Initial commit: ConnectGuard MVP"
+  git branch -M main
+  git push -u origin main
+
+That's it. Your project is live.
